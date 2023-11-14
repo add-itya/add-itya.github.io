@@ -7,7 +7,6 @@ function App() {
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
   const detectorRef = useRef(null);
-  
   tf.setBackend('webgl'); // You can also try 'cpu' or 'wasm' as alternatives
 
   let isRecording = false;
@@ -67,19 +66,37 @@ function App() {
   const stopRecording = () => {
     isRecording = false;
     let data = {
-      "landmarks": recordedData
-    }
-    console.log(JSON.stringify(data))
+        "landmarks": recordedData
+    };
+
+    console.log(JSON.stringify(data));
+
     fetch('http://35.172.96.103:3001/calculate-ratio', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(data),
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data),
     })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        return response.text(); // Change to response.text() to see the raw response
+    })
+    .then(responseText => {
+        console.log("Raw response from server:", responseText);
+        // Handle the response data as needed
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+
     // Clear the recorded data to allow the user to record again
     recordedData.length = 0;
-  };
+};
+
+
 
   useEffect(() => {
     requestAnimationFrame(captureAndProcessFrame);
