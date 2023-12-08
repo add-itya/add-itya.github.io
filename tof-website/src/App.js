@@ -7,6 +7,7 @@ function App() {
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
   const detectorRef = useRef(null);
+  const [handDistanceMessage, setHandDistanceMessage] = useState('Initializaing');
   tf.setBackend('webgl'); // You can also try 'cpu' or 'wasm' as alternatives
 
   let isRecording = false;
@@ -38,6 +39,31 @@ function App() {
         const hands = await detectorRef.current.estimateHands(img);
 
         const keypointsData = [];
+
+        if (hands.length !== 0) {
+          const thumbLandmark = hands[0].keypoints[4]; // Thumb landmark
+          const pinkyLandmark = hands[0].keypoints[20]; // Pinky landmark
+          const distance = Math.sqrt(
+            Math.pow(thumbLandmark.x - pinkyLandmark.x, 2) +
+            Math.pow(thumbLandmark.y - pinkyLandmark.y, 2)
+          );
+
+          // threshold values for detecting too close and too far
+          const tooCloseThreshold = 260; // Adjust as needed
+          const tooFarThreshold = 110; // Adjust as needed
+
+          if (distance > tooCloseThreshold) {
+            setHandDistanceMessage('Hand is too close');
+          } else if (distance < tooFarThreshold) {
+            setHandDistanceMessage('Hand is too far');
+          } else {
+            setHandDistanceMessage('Hand in proper location'); // Clear the message when the hand is within the acceptable range
+          }
+        }
+        else {
+          setHandDistanceMessage('No Hand Detected'); // Clear the message when no hand is detected      
+        }
+
         if (hands.length !== 0 && (isRecording)) {
           console.log("here")
           keypointsData.push(
@@ -116,6 +142,17 @@ function App() {
         width={640}
         height={480}
       />
+      <div
+        style={{
+          position: 'absolute',
+          top: 10,
+          left: 10,
+          color: 'black',
+          fontSize: '30px',
+        }}
+      >
+        {handDistanceMessage}
+      </div>
       <button onClick={startRecording}>Start Recording</button>
       <button onClick={stopRecording}>Stop Recording</button>
     </div>
