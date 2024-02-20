@@ -10,8 +10,8 @@ function App() {
   const [handDistanceMessage, setHandDistanceMessage] = useState('Initializaing');
   tf.setBackend('webgl'); // You can also try 'cpu' or 'wasm' as alternatives
 
-  let isRecording = false;
-  const recordedData = [];
+  const isRecordingRef = useRef(false); // Use a ref to hold the isRecording value
+  const [recordedData, setRecordedData] = useState([]); // Use state to store recorded data
 
   // Load the hand-pose detection model when the component mounts
   useEffect(() => {
@@ -63,8 +63,8 @@ function App() {
         else {
           setHandDistanceMessage('No Hand Detected'); // Clear the message when no hand is detected      
         }
-
-        if (hands.length !== 0 && (isRecording)) {
+        
+        if (hands.length !== 0 && (isRecordingRef.current)) {
           console.log("here")
           keypointsData.push(
             hands[0].keypoints3D[4].x,
@@ -74,8 +74,9 @@ function App() {
             hands[0].keypoints3D[20].y,
             hands[0].keypoints3D[20].z,
           );
-          recordedData.push(keypointsData);
-        } else if (isRecording) {
+          console.log(keypointsData);
+          setRecordedData(prevData => [...prevData, keypointsData]); // Update recordedData state
+        } else if (isRecordingRef.current) {
           alert("No hand detected")
           stopRecording();
         }
@@ -85,12 +86,13 @@ function App() {
   };
 
   const startRecording = () => {
-    isRecording = true;
+    isRecordingRef.current = true;
+    console.log("Recording started");
   };
   
 
   const stopRecording = () => {
-    isRecording = false;
+    isRecordingRef.current = false;
     let data = {
         "landmarks": recordedData
     };
@@ -111,7 +113,7 @@ function App() {
         return response.text(); // Change to response.text() to see the raw response
     })
     .then(responseText => {
-        console.log("Raw response from server:", responseText);
+        alert("Response from server: " + responseText);
         // Handle the response data as needed
     })
     .catch(error => {
@@ -119,7 +121,7 @@ function App() {
     });
 
     // Clear the recorded data to allow the user to record again
-    recordedData.length = 0;
+    setRecordedData([]); // Reset recordedData after sending
 };
 
 
