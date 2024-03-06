@@ -99,7 +99,7 @@ function App() {
 
     console.log(JSON.stringify(data));
 
-    fetch('http://35.172.96.103:3001/calculate-ratio', {
+    fetch('https://trainoffour.com:3001/calculate-ratio', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
