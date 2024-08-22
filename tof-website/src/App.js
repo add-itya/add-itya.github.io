@@ -131,7 +131,7 @@ function App() {
       body: JSON.stringify(data),
     }).then(response => {
       if (!response.ok) {
-        setpercent(response.status)
+        setpercent('this' +response.status)
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
       return response.text();
@@ -139,7 +139,7 @@ function App() {
       let tmp = JSON.parse(responseText);
       setpercent(tmp['results']);
     }).catch(error => {
-      setpercent(error.message || 'Unknown error')
+      setpercent('that' + error.message || 'Unknown error')
       console.error('Error:', error);
     });
 
