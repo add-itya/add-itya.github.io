@@ -125,7 +125,8 @@ function App() {
       mediaRecorderRef.current.stop();
     }
     let data = { "landmarks": recordedData };
-    console.log(JSON.stringify(data));
+    setpercent(data)
+    return
 
     try {
       const response = await axios.post(
