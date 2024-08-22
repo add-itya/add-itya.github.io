@@ -136,8 +136,12 @@ function App() {
       }
       return response.text();
     }).then(responseText => {
-      let tmp = JSON.parse(responseText);
-      setpercent(tmp['results']);
+      try {
+        let tmp = JSON.parse(responseText);
+        setpercent(tmp['results']);
+      } catch (error) {
+        setpercent('Parsing Failed: ' + error.message);
+      }
     }).catch(error => {
       setpercent('that' + error.message || 'Unknown error')
       console.error('Error:', error);
