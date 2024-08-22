@@ -3,6 +3,8 @@ import Webcam from 'react-webcam';
 import * as handPoseDetection from '@tensorflow-models/hand-pose-detection';
 import * as tf from '@tensorflow/tfjs';
 
+import axios from 'axios';
+
 function App() {
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
