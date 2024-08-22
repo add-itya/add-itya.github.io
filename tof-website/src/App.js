@@ -140,7 +140,7 @@ function App() {
       let tmp = JSON.parse(responseText);
       setpercent(tmp['results']);
     }).catch(error => {
-      setpercent(error)
+      setpercent(error.message || 'Unknown error')
       console.error('Error:', error);
     });
 
