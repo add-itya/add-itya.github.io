@@ -8,21 +8,19 @@ function App() {
   const canvasRef = useRef(null);
   const detectorRef = useRef(null);
   const mediaRecorderRef = useRef(null);
-  const videoChunksRef = useRef([]); // To store video chunks
+  const videoChunksRef = useRef([]);
   const [handDistanceMessage, setHandDistanceMessage] = useState('Initializing');
-  tf.setBackend('webgl'); // You can also try 'cpu' or 'wasm' as alternatives
+  const [percent, setpercent] = useState('');
+  
+  tf.setBackend('webgl');
 
-  const isRecordingRef = useRef(false); // Use a ref to hold the isRecording value
-  const [recordedData, setRecordedData] = useState([]); // Use state to store recorded data
+  const isRecordingRef = useRef(false);
+  const [recordedData, setRecordedData] = useState([]);
 
-  // Load the hand-pose detection model when the component mounts
   useEffect(() => {
     const loadHandPoseModel = async () => {
       const model = handPoseDetection.SupportedModels.MediaPipeHands;
-      const detectorConfig = {
-        runtime: 'tfjs',
-        modelType: 'full',
-      };
+      const detectorConfig = { runtime: 'tfjs', modelType: 'full' };
       const detector = await handPoseDetection.createDetector(model, detectorConfig);
       detectorRef.current = detector;
     };
@@ -38,67 +36,75 @@ function App() {
 
       img.onload = async () => {
         const hands = await detectorRef.current.estimateHands(img);
-
         const keypointsData = [];
-
-        if (hands.length !== 0) {
-          const thumbLandmark = hands[0].keypoints[4];
-          const pinkyLandmark = hands[0].keypoints[20];
-          const distance = Math.sqrt(
-            Math.pow(thumbLandmark.x - pinkyLandmark.x, 2) +
-            Math.pow(thumbLandmark.y - pinkyLandmark.y, 2)
-          );
-
-          const tooCloseThreshold = 260;
-          const tooFarThreshold = 110;
-
-          if (distance > tooCloseThreshold) {
-            setHandDistanceMessage('Hand is too close');
-          } else if (distance < tooFarThreshold) {
-            setHandDistanceMessage('Hand is too far');
-          } else {
-            setHandDistanceMessage('Hand in proper location');
-          }
-        } else {
-          setHandDistanceMessage('No Hand Detected');
-        }
-        
-        if (hands.length !== 0 && isRecordingRef.current) {
-          keypointsData.push(
-            hands[0].keypoints3D[4].x,
-            hands[0].keypoints3D[4].y,
-            hands[0].keypoints3D[4].z,
-            hands[0].keypoints3D[20].x,
-            hands[0].keypoints3D[20].y,
-            hands[0].keypoints3D[20].z,
-          );
-          setRecordedData(prevData => [...prevData, keypointsData]);
-        } else if (isRecordingRef.current) {
-          alert("No hand detected");
-          stopRecording();
-        }
+        processHands(hands, keypointsData);
       };
     }
     requestAnimationFrame(captureAndProcessFrame);
   };
 
+  function processHands(hands, keypointsData) {
+    if (hands.length !== 0) {
+      calculateHandDistance(hands);
+      if (isRecordingRef.current) {
+        recordHandData(hands, keypointsData);
+      }
+    } else {
+      handleNoHandsDetected();
+    }
+  }
+
+  function calculateHandDistance(hands) {
+    const thumbLandmark = hands[0].keypoints[4];
+    const pinkyLandmark = hands[0].keypoints[20];
+    const distance = Math.sqrt(
+      Math.pow(thumbLandmark.x - pinkyLandmark.x, 2) +
+      Math.pow(thumbLandmark.y - pinkyLandmark.y, 2)
+    );
+    const tooCloseThreshold = 260;
+    const tooFarThreshold = 110;
+    if (distance > tooCloseThreshold) {
+      setHandDistanceMessage('Hand is too close');
+    } else if (distance < tooFarThreshold) {
+      setHandDistanceMessage('Hand is too far');
+    } else {
+      setHandDistanceMessage('Hand in proper location');
+    }
+  }
+
+  function handleNoHandsDetected() {
+    setHandDistanceMessage('No Hand Detected');
+    if (isRecordingRef.current) {
+      alert("No hand detected");
+      stopRecording();
+    }
+  }
+
+  function recordHandData(hands, keypointsData) {
+    keypointsData.push(
+      hands[0].keypoints3D[4].x,
+      hands[0].keypoints3D[4].y,
+      hands[0].keypoints3D[4].z,
+      hands[0].keypoints3D[20].x,
+      hands[0].keypoints3D[20].y,
+      hands[0].keypoints3D[20].z,
+    );
+    setRecordedData(prevData => [...prevData, keypointsData]);
+  }
+
   const startRecording = () => {
     isRecordingRef.current = true;
-    videoChunksRef.current = []; // Clear previous video chunks
+    videoChunksRef.current = [];
 
     const stream = webcamRef.current.video.srcObject;
     const mediaRecorder = new MediaRecorder(stream);
-
-    mediaRecorder.ondataavailable = (event) => {
+    mediaRecorder.ondataavailable = event => {
       if (event.data.size > 0) {
         videoChunksRef.current.push(event.data);
       }
     };
-
     mediaRecorder.onstop = () => {
-      const videoBlob = new Blob(videoChunksRef.current, {
-        type: 'video/webm'
-      });
+      const videoBlob = new Blob(videoChunksRef.current, { type: 'video/webm' });
       const videoUrl = URL.createObjectURL(videoBlob);
 
       const a = document.createElement('a');
@@ -109,50 +115,38 @@ function App() {
 
     mediaRecorder.start();
     mediaRecorderRef.current = mediaRecorder;
-
     console.log("Recording started");
   };
-  
 
-  async function stopRecording () {
+  async function stopRecording() {
     isRecordingRef.current = false;
-
     if (mediaRecorderRef.current) {
-      mediaRecorderRef.current.stop(); // Stop the video recording
+      mediaRecorderRef.current.stop();
     }
-
-    let data = {
-        "landmarks": recordedData
-    };
-
+    let data = { "landmarks": recordedData };
     console.log(JSON.stringify(data));
 
     await fetch('https://us-central1-microbiome-database-372700.cloudfunctions.net/function-1', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data),
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-        return response.text(); 
-    })
-    .then(responseText => {
-        alert("Response from server: " + responseText);
-    })
-    .catch(error => {
-        console.error('Error:', error);
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }).then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      return response.text();
+    }).then(responseText => {
+      let tmp = JSON.parse(responseText);
+      setpercent(tmp['results']);
+    }).catch(error => {
+      console.error('Error:', error);
     });
 
-    setRecordedData([]); 
+    setRecordedData([]);
   };
 
   useEffect(() => {
     requestAnimationFrame(captureAndProcessFrame);
-
     return () => {
       if (detectorRef.current) {
         detectorRef.current.close();
@@ -162,23 +156,23 @@ function App() {
 
   return (
     <div>
-      <Webcam audio={false} ref={webcamRef} screenshotFormat="image/jpeg" />
-      <canvas
-        ref={canvasRef}
-        width={640}
-        height={480}
+      <Webcam
+        audio={false}
+        ref={webcamRef}
+        screenshotFormat="image/jpeg"
+        videoConstraints={{ facingMode: "environment" }} // Use back camera by default
       />
-      <div
-        style={{
-          position: 'absolute',
-          top: 10,
-          left: 10,
-          color: 'black',
-          fontSize: '30px',
-        }}
-      >
+      <canvas ref={canvasRef} width={640} height={480} />
+      <div style={{
+        position: 'absolute',
+        top: 10,
+        left: 10,
+        color: 'black',
+        fontSize: '30px',
+      }}>
         {handDistanceMessage}
       </div>
+      <p>Results: {percent}</p>
       <button onClick={startRecording}>Start Recording</button>
       <button onClick={stopRecording}>Stop Recording</button>
     </div>
