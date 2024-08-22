@@ -7,7 +7,9 @@ function App() {
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
   const detectorRef = useRef(null);
-  const [handDistanceMessage, setHandDistanceMessage] = useState('Initializaing');
+  const mediaRecorderRef = useRef(null);
+  const videoChunksRef = useRef([]); // To store video chunks
+  const [handDistanceMessage, setHandDistanceMessage] = useState('Initializing');
   tf.setBackend('webgl'); // You can also try 'cpu' or 'wasm' as alternatives
 
   const isRecordingRef = useRef(false); // Use a ref to hold the isRecording value
@@ -31,7 +33,6 @@ function App() {
   const captureAndProcessFrame = async () => {
     if (detectorRef.current && webcamRef.current && canvasRef.current) {
       const imageBase64 = webcamRef.current.getScreenshot();
-      // Create an HTMLImageElement and set its src to the base64 image
       const img = new Image();
       img.src = imageBase64;
 
@@ -41,31 +42,28 @@ function App() {
         const keypointsData = [];
 
         if (hands.length !== 0) {
-          const thumbLandmark = hands[0].keypoints[4]; // Thumb landmark
-          const pinkyLandmark = hands[0].keypoints[20]; // Pinky landmark
+          const thumbLandmark = hands[0].keypoints[4];
+          const pinkyLandmark = hands[0].keypoints[20];
           const distance = Math.sqrt(
             Math.pow(thumbLandmark.x - pinkyLandmark.x, 2) +
             Math.pow(thumbLandmark.y - pinkyLandmark.y, 2)
           );
 
-          // threshold values for detecting too close and too far
-          const tooCloseThreshold = 260; // Adjust as needed
-          const tooFarThreshold = 110; // Adjust as needed
+          const tooCloseThreshold = 260;
+          const tooFarThreshold = 110;
 
           if (distance > tooCloseThreshold) {
             setHandDistanceMessage('Hand is too close');
           } else if (distance < tooFarThreshold) {
             setHandDistanceMessage('Hand is too far');
           } else {
-            setHandDistanceMessage('Hand in proper location'); // Clear the message when the hand is within the acceptable range
+            setHandDistanceMessage('Hand in proper location');
           }
-        }
-        else {
-          setHandDistanceMessage('No Hand Detected'); // Clear the message when no hand is detected      
+        } else {
+          setHandDistanceMessage('No Hand Detected');
         }
         
-        if (hands.length !== 0 && (isRecordingRef.current)) {
-          console.log("here")
+        if (hands.length !== 0 && isRecordingRef.current) {
           keypointsData.push(
             hands[0].keypoints3D[4].x,
             hands[0].keypoints3D[4].y,
@@ -74,10 +72,9 @@ function App() {
             hands[0].keypoints3D[20].y,
             hands[0].keypoints3D[20].z,
           );
-          console.log(keypointsData);
-          setRecordedData(prevData => [...prevData, keypointsData]); // Update recordedData state
+          setRecordedData(prevData => [...prevData, keypointsData]);
         } else if (isRecordingRef.current) {
-          alert("No hand detected")
+          alert("No hand detected");
           stopRecording();
         }
       };
@@ -87,19 +84,50 @@ function App() {
 
   const startRecording = () => {
     isRecordingRef.current = true;
+    videoChunksRef.current = []; // Clear previous video chunks
+
+    const stream = webcamRef.current.video.srcObject;
+    const mediaRecorder = new MediaRecorder(stream);
+
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        videoChunksRef.current.push(event.data);
+      }
+    };
+
+    mediaRecorder.onstop = () => {
+      const videoBlob = new Blob(videoChunksRef.current, {
+        type: 'video/webm'
+      });
+      const videoUrl = URL.createObjectURL(videoBlob);
+
+      const a = document.createElement('a');
+      a.href = videoUrl;
+      a.download = 'hand_recording.webm';
+      a.click();
+    };
+
+    mediaRecorder.start();
+    mediaRecorderRef.current = mediaRecorder;
+
     console.log("Recording started");
   };
   
 
-  const stopRecording = () => {
+  async function stopRecording () {
     isRecordingRef.current = false;
+
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop(); // Stop the video recording
+    }
+
     let data = {
         "landmarks": recordedData
     };
 
     console.log(JSON.stringify(data));
 
-    fetch('https://trainoffour.com:3001/calculate-ratio', {
+    await fetch('https://us-central1-microbiome-database-372700.cloudfunctions.net/function-1', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -110,21 +138,17 @@ function App() {
         if (!response.ok) {
             throw new Error(`HTTP error! Status: ${response.status}`);
         }
-        return response.text(); // Change to response.text() to see the raw response
+        return response.text(); 
     })
     .then(responseText => {
         alert("Response from server: " + responseText);
-        // Handle the response data as needed
     })
     .catch(error => {
         console.error('Error:', error);
     });
 
-    // Clear the recorded data to allow the user to record again
-    setRecordedData([]); // Reset recordedData after sending
-};
-
-
+    setRecordedData([]); 
+  };
 
   useEffect(() => {
     requestAnimationFrame(captureAndProcessFrame);
