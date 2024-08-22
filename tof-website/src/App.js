@@ -125,27 +125,40 @@ function App() {
     let data = { "landmarks": recordedData };
     console.log(JSON.stringify(data));
 
-    await fetch('https://us-central1-microbiome-database-372700.cloudfunctions.net/function-1', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    }).then(response => {
-      if (!response.ok) {
-        setpercent('this' +response.status)
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      return response.text();
-    }).then(responseText => {
+    try {
+      const response = await axios.post(
+        'https://us-central1-microbiome-database-372700.cloudfunctions.net/function-1',
+        data,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+  
       try {
-        let tmp = JSON.parse(responseText);
+        let tmp = response.data;
         setpercent(tmp['results']);
       } catch (error) {
         setpercent('Parsing Failed: ' + error.message);
+        console.error('Error in parsing response:', error);
       }
-    }).catch(error => {
-      setpercent('that' + error.message || 'Unknown error')
-      console.error('Error:', error);
-    });
+  
+    } catch (error) {
+      if (error.response) {
+        // The request was made, and the server responded with a status code that falls out of the range of 2xx
+        setpercent('this ' + error.response.status);
+        console.error('Response error:', error.response.status);
+      } else if (error.request) {
+        // The request was made but no response was received
+        setpercent('that No response received');
+        console.error('Request error:', error.request);
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        setpercent('that ' + error.message || 'Unknown error');
+        console.error('Axios error:', error.message);
+      }
+    }
 
     setRecordedData([]);
   };
