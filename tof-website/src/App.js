@@ -141,6 +141,7 @@ function App() {
       try {
         let tmp = response.data;
         setpercent(tmp['results']);
+        return tmp
       } catch (error) {
         setpercent('Parsing Failed: ' + error.message);
         console.error('Error in parsing response:', error);
