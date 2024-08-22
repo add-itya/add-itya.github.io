@@ -153,8 +153,7 @@ function App() {
         console.error('Response error:', error.response.status);
       } else if (error.request) {
         // The request was made but no response was received
-        setpercent('that No response received');
-        console.error('Request error:', error.request, error.message);
+        setpercent('that No response received, Request error: ' + String(error.request) + " error message" + String(error.message) );
       } else {
         // Something happened in setting up the request that triggered an Error
         setpercent('that ' + error.message || 'Unknown error');
