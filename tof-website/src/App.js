@@ -12,7 +12,7 @@ function App() {
   const [handDistanceMessage, setHandDistanceMessage] = useState('Initializing');
   const [percent, setpercent] = useState('');
   
-  tf.setBackend('cpu');
+  tf.setBackend('webgl');
 
   const isRecordingRef = useRef(false);
   const [recordedData, setRecordedData] = useState([]);
