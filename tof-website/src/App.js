@@ -125,13 +125,43 @@ function App() {
       mediaRecorderRef.current.stop();
     }
     let data = { "landmarks": recordedData };
-    setpercent(JSON.stringify(data))
+
+    try {
+      const response = await axios.post(
+        'https://us-central1-microbiome-database-372700.cloudfunctions.net/function-1',
+        data,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+  
+      try {
+        let tmp = response.data;
+        setpercent(tmp['results']);
+        return tmp
+      } catch (error) {
+        setpercent('Parsing Failed: ' + error.message);
+        console.error('Error in parsing response:', error);
+      }
+  
+    } catch (error) {
+      if (error.response) {
+        // The request was made, and the server responded with a status code that falls out of the range of 2xx
+        setpercent('this ' + error.response.status);
+        console.error('Response error:', error.response.status);
+      } else if (error.request) {
+        // The request was made but no response was received
+        setpercent('that No response received, Request error: ' + JSON.stringify(error.request, null, 2) + " error message" + String(error.message) );
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        setpercent('that ' + error.message || 'Unknown error');
+        console.error('Axios error:', error.message);
+      }
+    }
 
     setRecordedData([]);
-    return
-
-    
-
   };
 
   useEffect(() => {
