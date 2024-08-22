@@ -125,7 +125,7 @@ function App() {
       mediaRecorderRef.current.stop();
     }
     let data = { "landmarks": recordedData };
-    setpercent(data)
+    setpercent(JSON.stringify(data))
 
     setRecordedData([]);
     return
